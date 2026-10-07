@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Misura</title>
+<meta name="description" content="Note ta tension et suis ta moyenne sur 7 jours.">
+<meta name="theme-color" content="#B06A1E">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Misura">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<style>
+:root{
+  --bg:#F7F0E3; --surface:#FFFCF6; --ink:#2A231D; --muted:#6B5E50;
+  --line:#E3D6C0; --accent:#9A5714; --accent-ink:#FFFFFF; --field:#FBF6EC;
+  --ok:#3D6B45; --ok-bg:#E4EDDC; --warn:#874A0F; --warn-bg:#F4E1C8;
+  --alert:#9E2A22; --alert-bg:#F7DCD6; --sys:#9A5714; --dia:#3F5F6E;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#1E1914; --surface:#28211B; --ink:#F2E9DC; --muted:#B7A895;
+    --line:#43382D; --accent:#E3A35C; --accent-ink:#1E1914; --field:#1E1914;
+    --ok:#9CC8A1; --ok-bg:#25322A; --warn:#EBB273; --warn-bg:#3A2B1C;
+    --alert:#F19A90; --alert-bg:#3F211D; --sys:#E3A35C; --dia:#8FB5C6;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#1E1914; --surface:#28211B; --ink:#F2E9DC; --muted:#B7A895;
+  --line:#43382D; --accent:#E3A35C; --accent-ink:#1E1914; --field:#1E1914;
+  --ok:#9CC8A1; --ok-bg:#25322A; --warn:#EBB273; --warn-bg:#3A2B1C;
+  --alert:#F19A90; --alert-bg:#3F211D; --sys:#E3A35C; --dia:#8FB5C6;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  font-size:1.125rem;line-height:1.5;overflow-wrap:anywhere}
+main{max-width:34rem;margin:0 auto;padding:1rem 1rem 3rem}
+h1{font-size:1.6rem;margin:0;letter-spacing:-.01em}
+h2{font-size:1.25rem;margin:0 0 .75rem}
+p{margin:0}
+
+.hero{padding:.75rem 0 1.25rem}
+.hero .sub{color:var(--muted)}
+.reading{display:flex;align-items:baseline;gap:.1em;margin:.5rem 0 .1rem;
+  font-weight:700;font-size:clamp(3.6rem,18vw,5.2rem);line-height:1;letter-spacing:-.02em;
+  font-variant-numeric:tabular-nums}
+.reading .slash{color:var(--line);font-weight:400}
+.reading.empty{color:var(--line)}
+.pulse{color:var(--muted)}
+.verdict{margin-top:1rem;padding:.85rem 1rem;border-radius:.6rem;background:var(--surface);border-left:6px solid var(--line)}
+.verdict.ok{background:var(--ok-bg);border-color:var(--ok)}
+.verdict.warn{background:var(--warn-bg);border-color:var(--warn)}
+.days{display:flex;gap:.35rem;margin-top:1rem}
+.days span{flex:1;height:.55rem;border-radius:1rem;background:var(--line)}
+.days span.on{background:var(--accent)}
+.days-label{color:var(--muted);margin-top:.35rem}
+
+.alert{display:none;margin:0 0 1rem;padding:1rem;border-radius:.6rem;background:var(--alert-bg);color:var(--alert);font-weight:700}
+.alert.show{display:block}
+
+section.card{background:var(--surface);border-radius:.9rem;padding:1.15rem 1rem 1.25rem;margin-top:1rem;border:1px solid var(--line)}
+label{display:block;color:var(--muted)}
+input,textarea{font:inherit;color:var(--ink);background:var(--field);border:1px solid var(--line);border-radius:.5rem;padding:.6rem .65rem;width:100%}
+textarea{min-height:6rem;resize:vertical}
+input:focus-visible,textarea:focus-visible,button:focus-visible,summary:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.when{display:flex;gap:.75rem;align-items:end;flex-wrap:wrap;margin-bottom:.5rem}
+.when > div{flex:1 1 12rem}
+.moment{font-weight:700;padding:.6rem 0}
+.row{margin-top:1rem}
+.row-title{font-weight:700;margin-bottom:.35rem}
+.trio{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem}
+.trio input{font-size:1.5rem;font-weight:700;text-align:center;font-variant-numeric:tabular-nums;padding:.55rem .25rem}
+.hint{color:var(--muted);margin-top:1rem}
+.err{color:var(--alert);margin-top:.5rem;min-height:1.5em}
+button{font:inherit;cursor:pointer;border-radius:.6rem;border:2px solid var(--accent)}
+.primary{background:var(--accent);color:var(--accent-ink);font-weight:700;padding:.8rem 1rem;width:100%;margin-top:.5rem}
+.ghost{background:transparent;color:var(--accent);font-weight:700;padding:.65rem 1rem;width:100%;margin-top:.6rem}
+.danger{background:transparent;color:var(--alert);border-color:var(--alert);padding:.65rem 1rem;width:100%;margin-top:.6rem}
+.note{color:var(--muted);margin-top:.6rem}
+.status{margin-top:.75rem;font-weight:700}
+
+.chart svg{width:100%;height:auto;display:block}
+.legend{display:flex;gap:1.25rem;flex-wrap:wrap;color:var(--muted);margin-top:.4rem}
+.legend i{display:inline-block;width:1.1rem;height:.25rem;border-radius:1rem;vertical-align:middle;margin-right:.35rem}
+
+.day{border-top:1px solid var(--line);padding:.75rem 0}
+.day:first-child{border-top:0;padding-top:0}
+.day-date{font-weight:700}
+.entry{display:flex;justify-content:space-between;align-items:center;gap:.5rem;padding:.3rem 0}
+.entry .vals{font-variant-numeric:tabular-nums}
+.entry .vals small{color:var(--muted);font-size:1rem}
+.del{border:0;background:none;color:var(--muted);padding:.4rem .5rem;text-decoration:underline;font-size:1rem}
+.empty-list{color:var(--muted)}
+.more{margin-top:.5rem}
+
+details{margin-top:1rem;border-top:1px solid var(--line);padding-top:.75rem}
+summary{cursor:pointer;font-weight:700;color:var(--accent);padding:.25rem 0}
+details[open] summary{margin-bottom:.5rem}
+ul.refs{padding-left:1.2rem;margin:.25rem 0 0}
+ul.refs li{margin:.35rem 0}
+
+.toast{position:fixed;left:50%;bottom:calc(1rem + env(safe-area-inset-bottom,0px));transform:translateX(-50%);
+  background:var(--ink);color:var(--bg);padding:.65rem 1.1rem;border-radius:2rem;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90vw;text-align:center}
+.toast.show{opacity:1}
+@media (prefers-reduced-motion: reduce){.toast{transition:none}}
+</style>
+</head>
+<body>
+<main>
+  <header class="hero">
+    <h1>Misura</h1>
+    <p class="sub">Ta moyenne des 7 derniers jours</p>
+    <div class="reading empty" id="avg"><span>–</span><span class="slash">/</span><span>–</span></div>
+    <p class="pulse" id="avgPulse">Aucune mesure pour l'instant.</p>
+    <div class="verdict" id="verdict">Note ta première mesure ci-dessous.</div>
+    <div class="days" id="days" aria-hidden="true"></div>
+    <p class="days-label" id="daysLabel">0 jour de mesure sur les 7 derniers</p>
+  </header>
+
+  <div class="alert" id="alert" role="alert"></div>
+
+  <section class="card" aria-labelledby="addTitle">
+    <h2 id="addTitle">Noter ma tension</h2>
+    <div class="when">
+      <div>
+        <label for="dt">Date et heure</label>
+        <input type="datetime-local" id="dt">
+      </div>
+      <div class="moment" id="moment">Matin</div>
+    </div>
+
+    <div class="row">
+      <div class="row-title">1re mesure</div>
+      <div class="trio">
+        <div><label for="s1">Chiffre du haut</label><input id="s1" inputmode="numeric" pattern="[0-9]*" autocomplete="off"></div>
+        <div><label for="d1">Chiffre du bas</label><input id="d1" inputmode="numeric" pattern="[0-9]*" autocomplete="off"></div>
+        <div><label for="p1">Pouls</label><input id="p1" inputmode="numeric" pattern="[0-9]*" autocomplete="off"></div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="row-title">2e mesure, une minute après</div>
+      <div class="trio">
+        <div><label for="s2">Chiffre du haut</label><input id="s2" inputmode="numeric" pattern="[0-9]*" autocomplete="off"></div>
+        <div><label for="d2">Chiffre du bas</label><input id="d2" inputmode="numeric" pattern="[0-9]*" autocomplete="off"></div>
+        <div><label for="p2">Pouls</label><input id="p2" inputmode="numeric" pattern="[0-9]*" autocomplete="off"></div>
+      </div>
+    </div>
+    <p class="hint">Assieds-toi 5 minutes au calme, dos appuyé, bras posé à hauteur du cœur. Le matin, mesure avant le café.</p>
+    <p class="err" id="err" aria-live="polite"></p>
+    <button class="primary" id="save">Enregistrer</button>
+  </section>
+
+  <section class="card chart" id="chartCard" hidden aria-labelledby="chartTitle">
+    <h2 id="chartTitle">Mon évolution sur 30 jours</h2>
+    <div id="chart"></div>
+    <div class="legend">
+      <span><i style="background:var(--sys)"></i>Chiffre du haut</span>
+      <span><i style="background:var(--dia)"></i>Chiffre du bas</span>
+    </div>
+    <p class="note">Les traits pointillés marquent les seuils de 135 et 85.</p>
+  </section>
+
+  <section class="card" aria-labelledby="histTitle">
+    <h2 id="histTitle">Mes mesures</h2>
+    <div id="list"><p class="empty-list">Aucune mesure pour l'instant.</p></div>
+    <button class="ghost more" id="more" hidden>Voir les mesures plus anciennes</button>
+  </section>
+
+  <section class="card" aria-labelledby="docTitle">
+    <h2 id="docTitle">Pour le médecin</h2>
+    <p>Le résumé reprend ta moyenne et toutes tes mesures. Tu peux le coller dans un mail ou le montrer en consultation.</p>
+    <button class="primary" id="copy">Copier le résumé</button>
+    <p class="note">Le résumé contient aussi un code de sauvegarde. Garde-le dans une note ou un mail à toi-même&#8239;: il permet de tout récupérer.</p>
+  </section>
+
+  <section class="card" aria-labelledby="bakTitle">
+    <h2 id="bakTitle">Sauvegarde</h2>
+    <p>Tes mesures restent uniquement dans ce téléphone. Si tu changes de téléphone ou supprimes Misura, elles disparaissent, sauf si tu as une sauvegarde.</p>
+    <p class="status" id="lastBackup">Aucune sauvegarde pour l'instant.</p>
+    <button class="primary" id="exportFile">Créer un fichier de sauvegarde</button>
+    <button class="ghost" id="importBtn">Recharger un fichier de sauvegarde</button>
+    <input type="file" id="importFile" accept=".json,application/json" hidden>
+
+    <details>
+      <summary>Restaurer à partir d'un texte</summary>
+      <p>Colle ici le résumé que tu as copié, avec son code de sauvegarde.</p>
+      <textarea id="restoreText" aria-label="Texte de sauvegarde"></textarea>
+      <button class="ghost" id="restoreBtn">Restaurer</button>
+    </details>
+
+    <details>
+      <summary>Effacer toutes les mesures</summary>
+      <p>Cette action supprime toutes les mesures de ce téléphone. Crée d'abord une sauvegarde si tu veux les garder.</p>
+      <button class="danger" id="wipe">Tout effacer</button>
+    </details>
+  </section>
+
+  <section class="card" aria-labelledby="refTitle">
+    <h2 id="refTitle">Repères</h2>
+    <ul class="refs">
+      <li>À la maison, une moyenne est considérée comme élevée à partir de 135/85.</li>
+      <li>La moyenne devient fiable après 3 jours de mesures, idéalement 7, matin et soir.</li>
+      <li>Une mesure à 180/110 ou plus, avec des maux de tête violents, des troubles de la vue ou une douleur dans la poitrine&#8239;: appelle le 112.</li>
+      <li>Misura aide à suivre ta tension. Elle ne pose pas de diagnostic&#8239;; ton médecin interprète tes mesures.</li>
+    </ul>
+  </section>
+</main>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(function(){
+  'use strict';
+  const NS = 'misura-';
+  const KEY = NS + 'mesures';
+  const KEY_BAK = NS + 'derniere-sauvegarde';
+  const NNBSP = '\u202F';
+  const $ = id => document.getElementById(id);
+  let mesures = [];
+  let showAll = false;
+
+  // ---------- Stockage local ----------
+  function load(){
+    try{ const v = localStorage.getItem(KEY); mesures = v ? JSON.parse(v) : []; }
+    catch(e){ mesures = []; }
+    mesures.sort((a,b) => a.t.localeCompare(b.t));
+  }
+  function save(){
+    try{ localStorage.setItem(KEY, JSON.stringify(mesures)); }
+    catch(e){ toast('Enregistrement impossible sur ce téléphone.'); }
+  }
+  function markBackup(){
+    try{ localStorage.setItem(KEY_BAK, new Date().toISOString()); }catch(e){}
+    renderBackup();
+  }
+
+  // ---------- Outils ----------
+  const pad = n => String(n).padStart(2,'0');
+  const dayKey = d => d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+  const momentOf = d => d.getHours() < 14 ? 'Matin' : 'Soir';
+  const hhmm = d => d.getHours()+'h'+pad(d.getMinutes());
+  const inputValue = d => dayKey(d)+'T'+pad(d.getHours())+':'+pad(d.getMinutes());
+  const minuteKey = t => t.slice(0,16);
+
+  function readingsOf(m){
+    const r = [{s:m.s1,d:m.d1,p:m.p1}];
+    if(m.s2 && m.d2) r.push({s:m.s2,d:m.d2,p:m.p2});
+    return r;
+  }
+  function last7(){
+    const limit = Date.now() - 7*24*3600*1000;
+    return mesures.filter(m => new Date(m.t).getTime() >= limit);
+  }
+  function stats(list){
+    const rs = list.flatMap(readingsOf);
+    if(!rs.length) return null;
+    const mean = k => Math.round(rs.reduce((a,r) => a + r[k], 0) / rs.length);
+    const ps = rs.filter(r => r.p);
+    return {
+      s: mean('s'), d: mean('d'),
+      p: ps.length ? Math.round(ps.reduce((a,r) => a + r.p, 0) / ps.length) : null,
+      n: rs.length,
+      days: new Set(list.map(m => dayKey(new Date(m.t)))).size
+    };
+  }
+
+  // ---------- Affichage ----------
+  function render(){
+    renderHero();
+    renderAlert();
+    renderChart();
+    renderList();
+    renderBackup();
+  }
+
+  function renderHero(){
+    const st = stats(last7());
+    const avg = $('avg'), v = $('verdict');
+    v.className = 'verdict';
+    if(!st){
+      avg.classList.add('empty');
+      avg.innerHTML = '<span>–</span><span class="slash">/</span><span>–</span>';
+      $('avgPulse').textContent = mesures.length ? 'Aucune mesure ces 7 derniers jours.' : 'Aucune mesure pour l\u2019instant.';
+      v.textContent = 'Note ta première mesure ci-dessous.';
+      drawDays(0);
+      return;
+    }
+    avg.classList.remove('empty');
+    avg.innerHTML = '<span>'+st.s+'</span><span class="slash">/</span><span>'+st.d+'</span>';
+    $('avgPulse').textContent = (st.p ? 'Pouls moyen '+st.p+', ' : '') + st.n + (st.n > 1 ? ' mesures' : ' mesure');
+    const high = st.s >= 135 || st.d >= 85;
+    if(st.days < 3){
+      v.textContent = 'Moyenne calculée sur ' + st.days + (st.days > 1 ? ' jours' : ' jour') + '. Il en faut au moins 3, idéalement 7, pour qu\u2019elle soit fiable.';
+    } else if(high){
+      v.classList.add('warn');
+      v.textContent = 'Ta moyenne est au-dessus du seuil de 135/85 fixé pour les mesures à domicile. Montre ton résumé à ton médecin.';
+    } else {
+      v.classList.add('ok');
+      v.textContent = 'Ta moyenne est sous le seuil de 135/85 fixé pour les mesures à domicile.';
+    }
+    drawDays(st.days);
+  }
+
+  function drawDays(n){
+    const box = $('days'); box.innerHTML = '';
+    for(let i = 0; i < 7; i++){ const s = document.createElement('span'); if(i < n) s.className = 'on'; box.appendChild(s); }
+    $('daysLabel').textContent = n + (n > 1 ? ' jours' : ' jour') + ' de mesure sur les 7 derniers';
+  }
+
+  function renderAlert(){
+    const lastM = mesures[mesures.length - 1];
+    const al = $('alert');
+    if(lastM && readingsOf(lastM).some(r => r.s >= 180 || r.d >= 110)){
+      al.textContent = 'Ta dernière mesure atteint 180/110 ou plus. Avec des maux de tête violents, des troubles de la vue ou une douleur dans la poitrine' + NNBSP + ': appelle le 112. Sans ces signes' + NNBSP + ': contacte ton médecin aujourd\u2019hui.';
+      al.classList.add('show');
+    } else al.classList.remove('show');
+  }
+
+  function renderChart(){
+    const limit = Date.now() - 30*24*3600*1000;
+    const byDay = new Map();
+    mesures.filter(m => new Date(m.t).getTime() >= limit).forEach(m => {
+      const k = dayKey(new Date(m.t));
+      if(!byDay.has(k)) byDay.set(k, []);
+      byDay.get(k).push(m);
+    });
+    const card = $('chartCard');
+    if(byDay.size < 2){ card.hidden = true; return; }
+    card.hidden = false;
+    const W = 340, H = 190, L = 34, R = 8, T = 10, B = 24;
+    const today = new Date(); today.setHours(0,0,0,0);
+    const start = today.getTime() - 29*24*3600*1000;
+    const pts = [...byDay.entries()].map(([k, list]) => {
+      const st = stats(list);
+      const [y,mo,d] = k.split('-').map(Number);
+      return { x: new Date(y, mo-1, d).getTime(), s: st.s, d: st.d };
+    }).sort((a,b) => a.x - b.x);
+    const vals = pts.flatMap(p => [p.s, p.d]);
+    const yMin = Math.min(60, ...vals) - 5, yMax = Math.max(160, ...vals) + 5;
+    const X = t => L + (t - start) / (29*24*3600*1000) * (W - L - R);
+    const Y = v => T + (yMax - v) / (yMax - yMin) * (H - T - B);
+    const line = k => pts.map((p,i) => (i ? 'L' : 'M') + X(p.x).toFixed(1) + ' ' + Y(p[k]).toFixed(1)).join(' ');
+    const dots = (k, c) => pts.map(p => '<circle cx="'+X(p.x).toFixed(1)+'" cy="'+Y(p[k]).toFixed(1)+'" r="3.5" fill="'+c+'"/>').join('');
+    let grid = '';
+    [80, 100, 120, 140, 160].filter(v => v > yMin && v < yMax).forEach(v => {
+      grid += '<text x="'+(L-6)+'" y="'+(Y(v)+4)+'" text-anchor="end" font-size="11" fill="var(--muted)">'+v+'</text>';
+    });
+    const th = v => '<line x1="'+L+'" x2="'+(W-R)+'" y1="'+Y(v)+'" y2="'+Y(v)+'" stroke="var(--muted)" stroke-dasharray="4 4" stroke-width="1"/>';
+    const fmt = t => { const d = new Date(t); return d.getDate()+'/'+(d.getMonth()+1); };
+    const xl = '<text x="'+L+'" y="'+(H-6)+'" font-size="11" fill="var(--muted)">'+fmt(start)+'</text>'
+             + '<text x="'+(W-R)+'" y="'+(H-6)+'" font-size="11" text-anchor="end" fill="var(--muted)">'+fmt(today.getTime())+'</text>';
+    $('chart').innerHTML =
+      '<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Moyennes par jour sur les 30 derniers jours">'
+      + grid + th(135) + th(85) + xl
+      + '<path d="'+line('s')+'" fill="none" stroke="var(--sys)" stroke-width="2.5" stroke-linejoin="round"/>'
+      + '<path d="'+line('d')+'" fill="none" stroke="var(--dia)" stroke-width="2.5" stroke-linejoin="round"/>'
+      + dots('s','var(--sys)') + dots('d','var(--dia)')
+      + '</svg>';
+  }
+
+  function renderList(){
+    const list = $('list');
+    if(!mesures.length){
+      list.innerHTML = '<p class="empty-list">Aucune mesure pour l\u2019instant.</p>';
+      $('more').hidden = true;
+      return;
+    }
+    const groups = new Map();
+    [...mesures].reverse().forEach(m => {
+      const k = dayKey(new Date(m.t));
+      if(!groups.has(k)) groups.set(k, []);
+      groups.get(k).push(m);
+    });
+    const keys = [...groups.keys()];
+    const visible = showAll ? keys : keys.slice(0, 7);
+    $('more').hidden = showAll || keys.length <= 7;
+    list.innerHTML = '';
+    visible.forEach(k => {
+      const items = groups.get(k);
+      const div = document.createElement('div'); div.className = 'day';
+      const h = document.createElement('div'); h.className = 'day-date';
+      const label = new Date(items[0].t).toLocaleDateString('fr-BE', { weekday:'long', day:'numeric', month:'long' });
+      h.textContent = label.charAt(0).toUpperCase() + label.slice(1);
+      div.appendChild(h);
+      items.forEach(m => {
+        const d = new Date(m.t);
+        const row = document.createElement('div'); row.className = 'entry';
+        const v = document.createElement('div'); v.className = 'vals';
+        const small = document.createElement('small'); small.textContent = momentOf(d) + ', ' + hhmm(d);
+        v.appendChild(small); v.appendChild(document.createElement('br'));
+        v.appendChild(document.createTextNode(readingsOf(m).map(r => r.s + '/' + r.d + (r.p ? ' (pouls ' + r.p + ')' : '')).join(', puis ')));
+        const b = document.createElement('button'); b.className = 'del'; b.textContent = 'Supprimer';
+        b.setAttribute('aria-label', 'Supprimer la mesure de ' + hhmm(d));
+        b.onclick = () => {
+          if(confirm('Supprimer cette mesure' + NNBSP + '?')){
+            mesures = mesures.filter(x => x.id !== m.id); save(); render();
+          }
+        };
+        row.appendChild(v); row.appendChild(b); div.appendChild(row);
+      });
+      list.appendChild(div);
+    });
+  }
+  $('more').onclick = () => { showAll = true; renderList(); };
+
+  function renderBackup(){
+    let t = null;
+    try{ t = localStorage.getItem(KEY_BAK); }catch(e){}
+    const el = $('lastBackup');
+    if(!t){ el.textContent = 'Aucune sauvegarde pour l\u2019instant.'; return; }
+    const d = new Date(t);
+    const days = Math.floor((Date.now() - d.getTime()) / (24*3600*1000));
+    el.textContent = 'Dernière sauvegarde' + NNBSP + ': ' + d.toLocaleDateString('fr-BE', { day:'numeric', month:'long', year:'numeric' })
+      + (days >= 30 ? ' (il y a ' + days + ' jours)' : '');
+  }
+
+  // ---------- Saisie ----------
+  function num(id){ const v = $(id).value.trim(); return v === '' ? null : Number(v); }
+  function valid(s, d, p){
+    if(s == null || d == null || !Number.isInteger(s) || !Number.isInteger(d)) return false;
+    if(s < 60 || s > 260 || d < 30 || d > 160 || s <= d) return false;
+    if(p != null && (!Number.isInteger(p) || p < 30 || p > 220)) return false;
+    return true;
+  }
+  function resetDate(){ const n = new Date(); $('dt').value = inputValue(n); $('moment').textContent = momentOf(n); }
+  $('dt').addEventListener('input', () => { const v = $('dt').value; if(v) $('moment').textContent = momentOf(new Date(v)); });
+
+  $('save').onclick = () => {
+    const s1 = num('s1'), d1 = num('d1'), p1 = num('p1');
+    const s2 = num('s2'), d2 = num('d2'), p2 = num('p2');
+    const err = $('err');
+    if(!valid(s1, d1, p1)){ err.textContent = 'Vérifie la 1re mesure' + NNBSP + ': le chiffre du haut doit être plus grand que celui du bas.'; return; }
+    const second = s2 != null || d2 != null || p2 != null;
+    if(second && !valid(s2, d2, p2)){ err.textContent = 'Vérifie la 2e mesure, ou laisse-la vide.'; return; }
+    err.textContent = '';
+    const when = $('dt').value ? new Date($('dt').value) : new Date();
+    const m = { id: 'm' + Date.now().toString(36) + Math.random().toString(36).slice(2,6), t: when.toISOString(), s1, d1, p1 };
+    if(second){ m.s2 = s2; m.d2 = d2; m.p2 = p2; }
+    mesures.push(m);
+    mesures.sort((a,b) => a.t.localeCompare(b.t));
+    save();
+    ['s1','d1','p1','s2','d2','p2'].forEach(id => $(id).value = '');
+    resetDate();
+    render();
+    toast('Mesure enregistrée');
+    window.scrollTo({ top: 0, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+  };
+
+  // ---------- Résumé et code de sauvegarde ----------
+  function encode(){
+    const rows = mesures.map(m => [Math.round(new Date(m.t).getTime() / 60000), m.s1, m.d1, m.p1 || 0, m.s2 || 0, m.d2 || 0, m.p2 || 0]);
+    return 'MISURA1:' + btoa(JSON.stringify(rows)) + ':FIN';
+  }
+  function decode(text){
+    const clean = text.replace(/\s+/g, '');
+    const match = clean.match(/MISURA1:([A-Za-z0-9+/=]+):FIN/);
+    if(!match) return null;
+    try{
+      const rows = JSON.parse(atob(match[1]));
+      return rows.map(r => {
+        const m = { id: 'm' + r[0].toString(36), t: new Date(r[0] * 60000).toISOString(), s1: r[1], d1: r[2], p1: r[3] || null };
+        if(r[4] && r[5]){ m.s2 = r[4]; m.d2 = r[5]; m.p2 = r[6] || null; }
+        return m;
+      }).filter(m => valid(m.s1, m.d1, m.p1));
+    }catch(e){ return null; }
+  }
+
+  function summary(){
+    const st = stats(last7());
+    let out = 'Suivi de tension à domicile (Misura)\n';
+    if(st) out += 'Moyenne des 7 derniers jours' + NNBSP + ': ' + st.s + '/' + st.d + (st.p ? ', pouls ' + st.p : '') + ' (' + st.n + ' mesures sur ' + st.days + ' jours)\n';
+    out += '\n';
+    mesures.forEach(m => {
+      const d = new Date(m.t);
+      out += d.toLocaleDateString('fr-BE') + ' ' + hhmm(d) + NNBSP + ': ' + readingsOf(m).map(r => r.s + '/' + r.d + (r.p ? ' pouls ' + r.p : '')).join(' puis ') + '\n';
+    });
+    out += '\nCode de sauvegarde Misura (ne pas modifier)' + NNBSP + ':\n' + encode() + '\n';
+    return out;
+  }
+
+  async function copyText(text){
+    try{ await navigator.clipboard.writeText(text); return true; }
+    catch(e){
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      let ok = false;
+      try{ ok = document.execCommand('copy'); }catch(_){}
+      ta.remove();
+      return ok;
+    }
+  }
+
+  $('copy').onclick = async () => {
+    if(!mesures.length){ toast('Aucune mesure à copier.'); return; }
+    if(await copyText(summary())){ markBackup(); toast('Résumé copié'); }
+    else toast('La copie n\u2019a pas fonctionné.');
+  };
+
+  // ---------- Sauvegarde fichier ----------
+  $('exportFile').onclick = async () => {
+    if(!mesures.length){ toast('Aucune mesure à sauvegarder.'); return; }
+    const data = JSON.stringify({ app: 'misura', version: 1, exporte: new Date().toISOString(), mesures }, null, 1);
+    const name = 'misura-sauvegarde-' + dayKey(new Date()) + '.json';
+    const file = new File([data], name, { type: 'application/json' });
+    try{
+      if(navigator.canShare && navigator.canShare({ files: [file] })){
+        await navigator.share({ files: [file], title: 'Sauvegarde Misura' });
+        markBackup();
+        return;
+      }
+    }catch(e){
+      if(e && e.name === 'AbortError') return;
+    }
+    const url = URL.createObjectURL(file);
+    const a = document.createElement('a'); a.href = url; a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+    markBackup();
+  };
+
+  $('importBtn').onclick = () => $('importFile').click();
+  $('importFile').onchange = async e => {
+    const f = e.target.files[0];
+    e.target.value = '';
+    if(!f) return;
+    try{
+      const obj = JSON.parse(await f.text());
+      if(!obj || obj.app !== 'misura' || !Array.isArray(obj.mesures)) throw new Error('format');
+      const list = obj.mesures.filter(m => m && typeof m.t === 'string' && valid(m.s1, m.d1, m.p1 ?? null));
+      report(mergeIn(list));
+    }catch(err){
+      toast('Ce fichier n\u2019est pas une sauvegarde Misura.');
+    }
+  };
+
+  $('restoreBtn').onclick = () => {
+    const list = decode($('restoreText').value);
+    if(!list){ toast('Aucun code de sauvegarde Misura trouvé dans ce texte.'); return; }
+    $('restoreText').value = '';
+    report(mergeIn(list));
+  };
+
+  function mergeIn(list){
+    const known = new Set(mesures.map(m => minuteKey(m.t)));
+    let added = 0;
+    list.forEach(m => {
+      const k = minuteKey(m.t);
+      if(!known.has(k)){ known.add(k); mesures.push(m); added++; }
+    });
+    mesures.sort((a,b) => a.t.localeCompare(b.t));
+    save();
+    render();
+    return added;
+  }
+  function report(n){
+    toast(n === 0 ? 'Aucune nouvelle mesure' + NNBSP + ': tout était déjà là.' : n + (n > 1 ? ' mesures ajoutées' : ' mesure ajoutée'));
+  }
+
+  $('wipe').onclick = () => {
+    if(!mesures.length){ toast('Aucune mesure à effacer.'); return; }
+    if(confirm('Effacer les ' + mesures.length + ' mesures de ce téléphone' + NNBSP + '?') &&
+       confirm('Dernière confirmation' + NNBSP + ': cette action est définitive.')){
+      mesures = []; save(); render(); toast('Toutes les mesures sont effacées');
+    }
+  };
+
+  // ---------- Message court ----------
+  let tt;
+  function toast(msg){
+    const t = $('toast'); t.textContent = msg; t.classList.add('show');
+    clearTimeout(tt); tt = setTimeout(() => t.classList.remove('show'), 2400);
+  }
+
+  // ---------- Démarrage ----------
+  load();
+  resetDate();
+  render();
+
+  if('serviceWorker' in navigator){
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./service-worker.js', { scope: './' }).catch(() => {});
+    });
+  }
+})();
+</script>
+</body>
+</html>
