@@ -71,11 +71,15 @@ input,textarea{font:inherit;color:var(--ink);background:var(--field);border:1px 
 textarea{min-height:6rem;resize:vertical}
 input:focus-visible,textarea:focus-visible,button:focus-visible,summary:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 .when{display:flex;gap:.75rem;align-items:end;flex-wrap:wrap;margin-bottom:.5rem}
-.when > div{flex:1 1 12rem}
+.when > div{flex:1 1 12rem;min-width:0}
+input[type="datetime-local"]{-webkit-appearance:none;appearance:none;display:block;min-width:0;max-width:100%;min-height:2.9rem;text-align:left}
+input[type="datetime-local"]::-webkit-date-and-time-value{text-align:left}
 .moment{font-weight:700;padding:.6rem 0}
 .row{margin-top:1rem}
 .row-title{font-weight:700;margin-bottom:.35rem}
-.trio{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem}
+.trio{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.5rem;align-items:stretch}
+.trio > div{display:flex;flex-direction:column;justify-content:flex-end;min-width:0}
+.trio label{line-height:1.25;margin-bottom:.3rem}
 .trio input{font-size:1.5rem;font-weight:700;text-align:center;font-variant-numeric:tabular-nums;padding:.55rem .25rem}
 .hint{color:var(--muted);margin-top:1rem}
 .err{color:var(--alert);margin-top:.5rem;min-height:1.5em}

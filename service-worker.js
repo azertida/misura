@@ -1,5 +1,5 @@
 // Incrémenter à chaque déploiement pour forcer la mise à jour
-const CACHE_NAME = 'misura-v1';
+const CACHE_NAME = 'misura-v2';
 const FILES = [
   './',
   './index.html',
